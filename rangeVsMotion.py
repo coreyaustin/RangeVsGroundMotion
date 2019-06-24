@@ -37,6 +37,11 @@ class rangeData:
             for j in xrange(len(motion)):
                 idx = np.where((self.data[i].value>motion[j]-25)&(self.data[i].value<motion[j]+25))
                 self.data[i].avg_range[j] = np.mean(self.data[self.channels[0]][idx].value)
+                
+    def normRange(self):
+        for i in self.channels:
+            self.data[i].mean = np.mean(self.data[i].value)
+            self.data[i].norm = self.data[i]/self.data[i].mean
         
         
     
@@ -62,9 +67,20 @@ motion = np.arange(50,1000,10)
 noise = rangeData(channels,filename,start=start,end=end)
 noise.cullGlitches()
 noise.averageRange(motion)
+noise.normRange()
     
-#%%
 plt.rcParams.update({'text.usetex': False})
+#%%
+
+for i in channels[1:]:
+    fig,ax = plt.subplots(1,figsize=[16*1.5,9*1.5])
+    ax.scatter(noise.data[i].times.value,noise.data[i].norm,label=i[15:-13])
+    ax.scatter(noise.data[channels[0]].times.value,noise.data[channels[0]].norm,label='Range')
+    ax.legend()
+    ax.set_xscale('auto-gps')
+    ax.set_yscale('log')
+#%%
+
 fig, axes = plt.subplots(3,3,sharex=True,sharey=True,figsize=[16*1.5,9*1.5])
 
 for i in range(3):
