@@ -46,6 +46,8 @@ class rangeData:
         
     
 #%%
+plt.rcParams.update({'text.usetex': False})            
+
 channels = ['L1:DMT-SNSH_EFFECTIVE_RANGE_MPC.mean',
             'L1:ISI-GND_STS_ETMY_Y_BLRMS_100M_300M.mean,m-trend',
             'L1:ISI-GND_STS_ETMY_Y_BLRMS_1_3.mean,m-trend',
@@ -69,16 +71,27 @@ noise.cullGlitches()
 noise.averageRange(motion)
 noise.normRange()
     
-plt.rcParams.update({'text.usetex': False})
+idx = np.where(noise.data[channels[0]].norm.value<0.98)
+#%%
+diffs = {}
+for i in channels[1:]:
+    diffs[i] =
+    for j in (set(channels[1:])-set(i)):
+        print j
+
+
 #%%
 
-for i in channels[1:]:
+for i in [3]:
+    idx2 = np.where(noise.data[channels[i]].norm[idx].value>1)
     fig,ax = plt.subplots(1,figsize=[16*1.5,9*1.5])
-    ax.scatter(noise.data[i].times.value,noise.data[i].norm,label=i[15:-13])
-    ax.scatter(noise.data[channels[0]].times.value,noise.data[channels[0]].norm,label='Range')
+    ax.scatter(noise.data[channels[i]].times[idx][idx2].value,
+               noise.data[channels[i]].norm[idx][idx2],label=channels[i][15:-13])
+    ax.scatter(noise.data[channels[0]].times[idx].value,noise.data[channels[0]].norm[idx],label='Range')
     ax.legend()
     ax.set_xscale('auto-gps')
     ax.set_yscale('log')
+    print('{} {}'.format(channels[i][15:-13],len(idx2[0])))
 #%%
 
 fig, axes = plt.subplots(3,3,sharex=True,sharey=True,figsize=[16*1.5,9*1.5])
