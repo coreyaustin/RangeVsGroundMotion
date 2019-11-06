@@ -11,6 +11,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 from os import path
 
+plt.rcParams.update({'text.usetex': False})
+#%%
+
 class rangeData:
     
     default_start = 'June 16 2019 00:00:00 UTC'
@@ -26,7 +29,7 @@ class rangeData:
             
     def cullGlitches(self):
         range = self.data[self.channels[0]]
-        index = np.where(range.value>120)
+        index = np.where(range.value>100)
         for i in self.channels:
             self.data[i] = self.data[i][index]
         
@@ -46,64 +49,107 @@ class rangeData:
         
     
 #%%
-plt.rcParams.update({'text.usetex': False})            
-
 channels = ['L1:DMT-SNSH_EFFECTIVE_RANGE_MPC.mean',
-            'L1:ISI-GND_STS_ETMY_Y_BLRMS_100M_300M.mean,m-trend',
+            'L1:OAF-RANGE_RLP_3_OUT16.mean,m-trend',
+            'L1:OAF-RANGE_RLP_2_OUT16.mean,m-trend',
+            'L1:OAF-RANGE_RLP_1_OUT16.mean,m-trend',
             'L1:ISI-GND_STS_ETMY_Y_BLRMS_1_3.mean,m-trend',
             'L1:ISI-GND_STS_ETMY_Y_BLRMS_3_10.mean,m-trend',
-            'L1:ISI-GND_STS_ETMX_X_BLRMS_100M_300M.mean,m-trend',
+            'L1:ISI-GND_STS_ETMY_Z_BLRMS_1_3.mean,m-trend',
+            'L1:ISI-GND_STS_ETMY_Z_BLRMS_3_10.mean,m-trend',
             'L1:ISI-GND_STS_ETMX_X_BLRMS_1_3.mean,m-trend',
             'L1:ISI-GND_STS_ETMX_X_BLRMS_3_10.mean,m-trend',
-            'L1:ISI-GND_STS_ITMY_Z_BLRMS_100M_300M.mean,m-trend',
+            'L1:ISI-GND_STS_ETMX_Z_BLRMS_1_3.mean,m-trend',
+            'L1:ISI-GND_STS_ETMX_Z_BLRMS_3_10.mean,m-trend',
             'L1:ISI-GND_STS_ITMY_Z_BLRMS_1_3.mean,m-trend',
             'L1:ISI-GND_STS_ITMY_Z_BLRMS_3_10.mean,m-trend']
 
+motion = np.arange(50,1000,10)
+#%%
+# O3A data
 start = 'June 11 2019 00:00:00 UTC'
 end   = 'June 18 2019 23:00:00 UTC'
 
 filename = '190611_to_190618_data'
 
-motion = np.arange(50,1000,10)
+before = rangeData(channels,filename,start=start,end=end)
+before.cullGlitches()
+before.averageRange(motion)
+before.normRange()
+#%%
+# O3B data
+start = 'November 1 2019 18:00:00 UTC'
+end   = 'November 5 2019 23:59:00 UTC'
 
-noise = rangeData(channels,filename,start=start,end=end)
-noise.cullGlitches()
-noise.averageRange(motion)
-noise.normRange()
+filename = '191101_to_191105_data'
+
+after = rangeData(channels,filename,start=start,end=end)
+after.cullGlitches()
+after.averageRange(motion)
+after.normRange()
+#%%
+from sklearn.linear_model import LinearRegression
+
+y_before = {}
+y_after = {}
+for i in xrange(len(channels)-4):
+    model_before = LinearRegression()
+    model_before.fit(np.array(before.data[channels[i+4]].value).reshape(-1,1),np.array(before.data[channels[0]].value).reshape(-1,1))
     
-idx = np.where(noise.data[channels[0]].norm.value<0.98)
+    x_before = motion
+    y_before[channels[i+4]] = model_before.predict(x_before[:,np.newaxis])
+    
+    model_after = LinearRegression()
+    model_after.fit(np.array(after.data[channels[i+4]].value).reshape(-1,1),np.array(after.data[channels[0]].value).reshape(-1,1))
+    
+    x_after = motion
+    y_after[channels[i+4]] = model_after.predict(x_after[:,np.newaxis])
+
 #%%
-diffs = {}
-for i in channels[1:]:
-    diffs[i] =
-    for j in (set(channels[1:])-set(i)):
-        print j
-
+plt.style.use('seaborn')
+for i in xrange(len(channels)-4):
+    plt.figure(figsize=(16, 9))
+    ax = plt.axes()
+#    ax.set_prop_cycle('color',plt.cm.Set1(np.linspace(0,1,9)))
+    
+    ax.scatter(before.data[channels[i+4]],before.data[channels[0]],s=1,label='O3a')
+    ax.plot(x_before, y_before[channels[i+4]])
+    
+    ax.scatter(after.data[channels[i+4]],after.data[channels[0]],s=1,label='O3b')
+    ax.plot(x_after, y_after[channels[i+4]])
+    
+    ax.set_xlim(30,1000)
+    ax.set_ylim(95,145)
+    ax.set_title('{}'.format(channels[i+4][15:-13]))
+    ax.set_xlabel('Ground Velocity (nm/s)')
+    ax.set_ylabel('Range (MpC)')
+    ax.legend(fontsize='x-large',loc='upper right',scatterpoints=100)
+    
+#    ax.axis('tight')
+    
+    
+    plt.show()
 
 #%%
-
-for i in [3]:
-    idx2 = np.where(noise.data[channels[i]].norm[idx].value>1)
-    fig,ax = plt.subplots(1,figsize=[16*1.5,9*1.5])
-    ax.scatter(noise.data[channels[i]].times[idx][idx2].value,
-               noise.data[channels[i]].norm[idx][idx2],label=channels[i][15:-13])
-    ax.scatter(noise.data[channels[0]].times[idx].value,noise.data[channels[0]].norm[idx],label='Range')
-    ax.legend()
-    ax.set_xscale('auto-gps')
-    ax.set_yscale('log')
-    print('{} {}'.format(channels[i][15:-13],len(idx2[0])))
-#%%
-
-fig, axes = plt.subplots(3,3,sharex=True,sharey=True,figsize=[16*1.5,9*1.5])
-
-for i in range(3):
-    for j in range(3):
-        index = (i * 3) + j + 1
-        axes[i,j].scatter(motion,noise.data[channels[index]].avg_range)
-        axes[i,j].set_title(channels[index][15:-13],fontsize=16)
-axes[0,0].set_ylim([125,140])
-for ax in axes.flat:
-    ax.set(xlabel='Ground Motion (nm/s)',ylabel='Range (Mpc)')    
-    ax.label_outer()
+#for i in channels[1:]:
+#    fig,ax = plt.subplots(1,figsize=[16*1.5,9*1.5])
+#    ax.scatter(before.data[i].times.value,before.data[i].norm,label=i[15:-13])
+#    ax.scatter(before.data[channels[0]].times.value,before.data[channels[0]].norm,label='Range')
+#    ax.legend()
+#    ax.set_xscale('auto-gps')
+#    ax.set_yscale('log')
+##%%
+#fig, axes = plt.subplots(3,2,sharex=True,sharey=True,figsize=[16*1.5,9*1.5])
+#
+#for i in range(3):
+#    for j in range(2):
+#        index = (i * 3) + j + 2
+#        axes[i,j].scatter(motion,before.data[channels[index]].avg_range)
+#        axes[i,j].set_title(channels[index][15:-13],fontsize=16)
+#axes[0,0].set_ylim([125,140])
+#for ax in axes.flat:
+#    ax.set(xlabel='Ground Motion (nm/s)',ylabel='Range (Mpc)')    
+#    ax.label_outer()
+#    
 
 
